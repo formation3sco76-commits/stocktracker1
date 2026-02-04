@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<title>StockTracker</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU3RvY2tUcmFja2VyIiwic2hvcnRfbmFtZSI6IlN0b2NrVHJhY2tlciIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMGEwYTBmIiwidGhlbWVfY29sb3IiOiIjMGEwYTBmIn0=">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'DM Sans',sans-serif; background:#0a0a0f; color:#fff; min-height:100vh; max-width:480px; margin:0 auto; overflow-x:hidden; }
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+input[type=number] { -moz-appearance:textfield; }
+
+.header { display:flex; align-items:center; justify-content:space-between; padding:16px; position:sticky; top:0; background:rgba(10,10,15,0.94); backdrop-filter:blur(20px); z-index:100; border-bottom:1px solid rgba(255,255,255,0.06); }
+.header h1 { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; letter-spacing:-0.5px; }
+.header .sub { font-size:12px; color:#636366; margin-top:2px; }
+
+.icon-btn { width:40px; height:40px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.06); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; }
+.icon-btn.alert-active { background:rgba(255,59,48,0.15); }
+.badge { position:absolute; top:-5px; right:-5px; background:#FF3B30; color:#fff; font-size:10px; font-weight:700; width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; }
+
+.summary-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px; }
+.summary-card { border-radius:16px; padding:16px; border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
+.summary-card.stock { background:linear-gradient(135deg,#1a1a2e,#16213e); }
+.summary-card.alerts-ok { background:linear-gradient(135deg,#0d2818,#1a3a2a); }
+.summary-card.alerts-warn { background:linear-gradient(135deg,#2d1b0e,#3d1f10); }
+.summary-label { font-size:11px; color:#8E8E93; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.summary-value { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; color:#fff; margin-top:4px; line-height:1; }
+.summary-unit { font-size:12px; color:#636366; margin-top:4px; }
+
+.info-banner { margin:0 16px 8px; padding:10px 14px; border-radius:12px; background:rgba(0,122,255,0.08); border:1px solid rgba(0,122,255,0.15); display:flex; align-items:center; gap:8px; font-size:12px; color:#8E8E93; }
+
+.section-header { padding:8px 16px; }
+.section-title { font-size:16px; font-weight:600; }
+
+.empty { text-align:center; padding:48px 24px; }
+.empty .icon { font-size:48px; margin-bottom:12px; }
+.empty p { color:#8E8E93; font-size:14px; }
+.empty .hint { color:#636366; font-size:12px; margin-top:4px; }
+
+.product-list { padding:0 16px; display:flex; flex-direction:column; gap:10px; padding-bottom:80px; }
+.product-card { background:rgba(255,255,255,0.04); border-radius:16px; padding:16px; border:1px solid rgba(255,255,255,0.06); cursor:pointer; }
+.product-card-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.product-name-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.status-dot { width:8px; height:8px; border-radius:4px; flex-shrink:0; }
+.product-name { font-weight:600; font-size:15px; }
+.meta-row { display:flex; gap:16px; margin-top:8px; }
+.meta-label { display:block; font-size:10px; color:#636366; text-transform:uppercase; letter-spacing:0.3px; }
+.meta-value { display:block; font-family:'Space Mono',monospace; font-size:15px; font-weight:700; margin-top:2px; }
+.status-badge { font-size:10px; font-weight:700; padding:4px 10px; border-radius:8px; border:1px solid; letter-spacing:0.5px; font-family:'Space Mono',monospace; flex-shrink:0; white-space:nowrap; }
+.progress-bg { height:3px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:14px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:2px; transition:width 0.5s ease; }
+
+.fab { position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:16px; background:linear-gradient(135deg,#FF9500,#FF6B00); border:none; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 8px 24px rgba(255,149,0,0.35); z-index:50; font-size:28px; }
+
+.toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); padding:10px 20px; border-radius:12px; color:#fff; font-size:14px; font-weight:600; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,0.4); white-space:nowrap; animation:fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+.back-btn { width:40px; height:40px; border-radius:12px; border:none; background:transparent; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.form-section { padding:24px 16px; }
+.form-group { margin-bottom:20px; }
+.form-label { display:block; font-size:12px; font-weight:600; color:#8E8E93; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px; }
+.form-input { width:100%; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); color:#fff; font-size:16px; font-family:'DM Sans',sans-serif; outline:none; }
+.form-input::placeholder { color:#48484a; }
+.form-hint { font-size:12px; color:#636366; margin-top:6px; display:block; line-height:1.5; }
+.primary-btn { width:100%; padding:16px; border-radius:14px; border:none; background:linear-gradient(135deg,#FF9500,#FF6B00); color:#fff; font-size:16px; font-weight:700; font-family:'DM Sans',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; box-shadow:0 4px 16px rgba(255,149,0,0.3); }
+.primary-btn:disabled { opacity:0.4; }
+
+.alert-card { background:rgba(255,255,255,0.04); border-radius:14px; padding:16px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.06); cursor:pointer; }
+.alert-text { font-size:14px; color:#ccc; line-height:1.5; }
+.alert-meta { font-size:12px; color:#636366; margin-top:8px; font-family:'Space Mono',monospace; }
+
+.status-banner { margin:12px 16px; padding:20px; border-radius:20px; border:1px solid; }
+.banner-row { display:flex; justify-content:space-between; align-items:center; }
+.banner-stock { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; margin:8px 0 0; }
+.banner-sub { color:#8E8E93; font-size:13px; }
+.banner-days { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; }
+
+.usage-card { margin:12px 16px; padding:16px; border-radius:16px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+.usage-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.usage-display { display:flex; flex-direction:column; align-items:center; padding:8px 0; }
+.usage-big { font-family:'Space Mono',monospace; font-size:40px; font-weight:700; color:#FF9500; line-height:1; }
+.usage-unit { font-size:14px; color:#8E8E93; margin-top:4px; }
+.usage-sub { font-size:11px; color:#636366; margin-top:8px; font-style:italic; }
+.small-btn { display:flex; align-items:center; gap:4px; padding:6px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.08); color:#8E8E93; font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+
+.quick-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:0 16px; margin:12px 0; }
+.stat-item { background:rgba(255,255,255,0.04); border-radius:14px; padding:14px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; border:1px solid rgba(255,255,255,0.06); }
+.stat-label { font-size:10px; color:#636366; text-transform:uppercase; letter-spacing:0.3px; }
+.stat-value { font-family:'Space Mono',monospace; font-size:16px; font-weight:700; }
+
+.chart-section { padding:16px; }
+.chart-title { font-size:14px; font-weight:600; color:#8E8E93; margin-bottom:12px; }
+.mini-chart { display:flex; align-items:flex-end; gap:6px; height:120px; padding:10px 0; }
+.chart-bar { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.chart-bar-label { font-size:10px; color:#8E8E93; font-family:'Space Mono',monospace; }
+.chart-bar-fill { width:100%; border-radius:4px; min-height:4px; transition:height 0.3s ease; }
+.chart-bar-date { font-size:9px; color:#636366; font-family:'Space Mono',monospace; }
+
+.action-card { background:rgba(255,255,255,0.04); border-radius:16px; padding:16px; border:1px solid rgba(255,255,255,0.06); margin:0 16px 12px; }
+.action-title { font-weight:600; font-size:15px; }
+.action-row { display:flex; gap:10px; margin-top:12px; }
+.action-btn { padding:14px 20px; border-radius:12px; border:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+.action-btn:disabled { opacity:0.4; }
+
+.history-section { padding:16px 16px 100px; }
+.history-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.history-dot { width:8px; height:8px; border-radius:4px; flex-shrink:0; }
+.history-date { font-size:13px; color:#8E8E93; font-family:'Space Mono',monospace; min-width:80px; }
+.history-amount { font-size:15px; font-weight:700; font-family:'Space Mono',monospace; min-width:50px; text-align:right; }
+.history-label { font-size:13px; color:#636366; }
+
+.edit-row { display:flex; gap:10px; align-items:center; }
+.edit-row .form-input { flex:1; margin:0; }
+.edit-unit { color:#636366; font-size:14px; }
+.btn-ok { padding:12px 18px; border-radius:12px; border:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; background:#007AFF; }
+.btn-cancel { padding:12px 14px; border-radius:12px; border:none; color:#fff; font-size:16px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.1); }
+
+.header-btns { display:flex; gap:10px; }
+.delete-btn { background:rgba(255,59,48,0.15); }
+
+.confirm-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:24px; }
+.confirm-box { background:#1c1c1e; border-radius:20px; padding:24px; max-width:320px; width:100%; text-align:center; }
+.confirm-box h3 { font-size:18px; margin-bottom:8px; }
+.confirm-box p { font-size:14px; color:#8E8E93; margin-bottom:20px; }
+.confirm-btns { display:flex; gap:10px; }
+.confirm-btns button { flex:1; padding:14px; border-radius:12px; border:none; font-size:15px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.btn-del { background:#FF3B30; color:#fff; }
+.btn-no { background:rgba(255,255,255,0.1); color:#fff; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ─── DATA LAYER ───────────────────────────
+const STORAGE_KEY = "stocktracker-v3";
+const loadData = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; } };
+const saveData = (d) => localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const todayStr = () => new Date().toISOString().split("T")[0];
+const fmtDate = (d) => { const p=d.split("-"); return `${p[2]}/${p[1]}/${p[0]}`; };
+const daysBetween = (a,b) => Math.floor((new Date(b)-new Date(a))/(864e5));
+
+const calcDaysLeft = (p) => (!p.dailyUsage||p.dailyUsage<=0) ? Infinity : Math.floor(p.currentStock/p.dailyUsage);
+const getStatus = (p) => {
+  const d=calcDaysLeft(p);
+  if(d<=5) return {color:"#FF3B30",label:"CRITIQUE",bg:"rgba(255,59,48,0.15)"};
+  if(d<=15) return {color:"#FF9500",label:"ALERTE",bg:"rgba(255,149,0,0.15)"};
+  if(d<=30) return {color:"#FFCC00",label:"À SURVEILLER",bg:"rgba(255,204,0,0.1)"};
+  return {color:"#34C759",label:"OK",bg:"rgba(52,199,89,0.1)"};
+};
+
+function autoDeduct(products) {
+  const t = todayStr();
+  let changed = false;
+  products.forEach(p => {
+    if(!p.dailyUsage || p.dailyUsage<=0) return;
+    const last = p.lastAutoDeduct || p.createdAt;
+    const elapsed = daysBetween(last, t);
+    if(elapsed <= 0) return;
+    changed = true;
+    p.currentStock = Math.max(0, p.currentStock - (p.dailyUsage * elapsed));
+    p.currentStock = Math.round(p.currentStock * 100) / 100;
+    if(!p.usageHistory) p.usageHistory = [];
+    for(let i=1; i<=elapsed; i++){
+      const d = new Date(last);
+      d.setDate(d.getDate()+i);
+      const ds = d.toISOString().split("T")[0];
+      if(!p.usageHistory.find(h=>h.date===ds)) p.usageHistory.push({date:ds, used:p.dailyUsage});
+    }
+    p.lastAutoDeduct = t;
+  });
+  if(changed) saveData(products);
+  return products;
+}
+
+// ─── APP STATE ────────────────────────────
+let products = autoDeduct(loadData());
+let currentView = "dashboard";
+let selectedId = null;
+let toastTimer = null;
+
+// ─── RENDER ENGINE ────────────────────────
+const $ = (s) => document.querySelector(s);
+const app = () => document.getElementById("app");
+
+function showToast(msg, type="success") {
+  clearTimeout(toastTimer);
+  const existing = document.querySelector('.toast');
+  if(existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.background = type==="warning" ? "#FF9500" : "#34C759";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  toastTimer = setTimeout(() => el.remove(), 3000);
+}
+
+function render() {
+  switch(currentView) {
+    case "dashboard": renderDashboard(); break;
+    case "add": renderAdd(); break;
+    case "alerts": renderAlerts(); break;
+    case "detail": renderDetail(); break;
+  }
+}
+
+// ─── DASHBOARD ────────────────────────────
+function renderDashboard() {
+  const alerts = products.filter(p => calcDaysLeft(p) <= (p.alertDays||15));
+  const totalStock = Math.round(products.reduce((s,p) => s+p.currentStock, 0));
+  const sorted = [...products].sort((a,b) => calcDaysLeft(a)-calcDaysLeft(b));
+
+  app().innerHTML = `
+    <div class="header">
+      <div>
+        <h1>📦 StockTracker</h1>
+        <div class="sub">${fmtDate(todayStr())} · ${products.length} référence${products.length!==1?'s':''}</div>
+      </div>
+      <div class="header-btns">
+        <button class="icon-btn" onclick="doRefresh()" title="Rafraîchir">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="icon-btn ${alerts.length>0?'alert-active':''}" onclick="goAlerts()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          ${alerts.length>0?`<span class="badge">${alerts.length}</span>`:''}
+        </button>
+      </div>
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card stock">
+        <span class="summary-label">Total Stock</span>
+        <span class="summary-value">${totalStock.toLocaleString()}</span>
+        <span class="summary-unit">cartons</span>
+      </div>
+      <div class="summary-card ${alerts.length>0?'alerts-warn':'alerts-ok'}">
+        <span class="summary-label">Alertes</span>
+        <span class="summary-value" style="color:${alerts.length>0?'#FF9500':'#34C759'}">${alerts.length}</span>
+        <span class="summary-unit">produit${alerts.length!==1?'s':''}</span>
+      </div>
+    </div>
+
+    <div class="info-banner">
+      <span>⚡</span>
+      <span>Le stock se déduit automatiquement chaque jour selon la consommation définie.</span>
+    </div>
+
+    <div class="section-header"><h2 class="section-title">Mes Produits</h2></div>
+
+    ${products.length===0 ? `
+      <div class="empty">
+        <div class="icon">📋</div>
+        <p>Aucun produit pour le moment</p>
+        <p class="hint">Appuyez sur + pour ajouter un produit</p>
+      </div>
+    ` : `
+      <div class="product-list">
+        ${sorted.map(p => {
+          const st = getStatus(p);
+          const dl = calcDaysLeft(p);
+          return `
+          <div class="product-card" onclick="goDetail('${p.id}')">
+            <div class="product-card-top">
+              <div style="flex:1">
+                <div class="product-name-row">
+                  <span class="status-dot" style="background:${st.color};box-shadow:0 0 8px ${st.color}60"></span>
+                  <span class="product-name">${p.name}</span>
+                </div>
+                <div class="meta-row">
+                  <div><span class="meta-label">Stock</span><span class="meta-value">${Math.round(p.currentStock).toLocaleString()}</span></div>
+                  <div><span class="meta-label">Conso/jour</span><span class="meta-value">${p.dailyUsage||'—'}</span></div>
+                  <div><span class="meta-label">Jours restants</span><span class="meta-value" style="color:${st.color}">${dl===Infinity?'∞':dl}</span></div>
+                </div>
+              </div>
+              <div class="status-badge" style="background:${st.bg};color:${st.color};border-color:${st.color}30">${st.label}</div>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" style="width:${Math.min(100,dl===Infinity?100:(dl/60)*100)}%;background:linear-gradient(90deg,${st.color},${st.color}88)"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    `}
+
+    <button class="fab" onclick="goAdd()">+</button>
+  `;
+}
+
+// ─── ADD ──────────────────────────────────
+function renderAdd() {
+  app().innerHTML = `
+    <div class="header">
+      <button class="back-btn" onclick="goDash()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <h1 style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700">Nouveau Produit</h1>
+      <div style="width:40px"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-group">
+        <label class="form-label">Nom de l'article</label>
+        <input class="form-input" id="f-name" placeholder="Ex: Carton A4 Standard">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stock initial (nombre de cartons)</label>
+        <input class="form-input" id="f-stock" type="number" placeholder="Ex: 500">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Consommation moyenne par jour</label>
+        <input class="form-input" id="f-usage" type="number" placeholder="Ex: 12">
+        <span class="form-hint">Nombre de cartons utilisés en moyenne par jour. Déduit automatiquement du stock.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alerte X jours avant rupture</label>
+        <input class="form-input" id="f-alert" type="number" placeholder="15" value="15">
+        <span class="form-hint">Vous serez alerté quand il restera moins de X jours de stock.</span>
+      </div>
+      <button class="primary-btn" id="btn-add" onclick="doAdd()">+ Ajouter le produit</button>
+    </div>
+  `;
+}
+
+function doAdd() {
+  const name = document.getElementById('f-name').value.trim();
+  const stock = parseFloat(document.getElementById('f-stock').value);
+  const usage = parseFloat(document.getElementById('f-usage').value);
+  const alert = parseInt(document.getElementById('f-alert').value) || 15;
+  if(!name || !stock || !usage) return;
+  products.push({
+    id: genId(), name, currentStock: stock, dailyUsage: usage, alertDays: alert,
+    usageHistory: [], receivedHistory: [{date:todayStr(), quantity:stock}],
+    createdAt: todayStr(), lastAutoDeduct: todayStr()
+  });
+  saveData(products);
+  showToast(`${name} ajouté !`);
+  goDash();
+}
+
+// ─── ALERTS ───────────────────────────────
+function renderAlerts() {
+  const alerts = products.filter(p => calcDaysLeft(p)<=(p.alertDays||15)).sort((a,b)=>calcDaysLeft(a)-calcDaysLeft(b));
+  app().innerHTML = `
+    <div class="header">
+      <button class="back-btn" onclick="goDash()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <h1 style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700">🔔 Alertes</h1>
+      <div style="width:40px"></div>
+    </div>
+    ${alerts.length===0 ? `
+      <div class="empty">
+        <div class="icon">✅</div>
+        <p style="color:#34C759;font-weight:600;font-size:16px">Tout va bien !</p>
+        <p class="hint">Aucun produit en alerte de rupture</p>
+      </div>
+    ` : `
+      <div style="padding:0 16px">
+        ${alerts.map(p => {
+          const st = getStatus(p);
+          const dl = calcDaysLeft(p);
+          const msg = dl<=0 ? "⚠️ RUPTURE DE STOCK !" : dl<=5 ? `🔴 CRITIQUE — Plus que ${dl} jour${dl>1?'s':''} !` : `🟠 Environ ${dl} jours avant rupture`;
+          return `
+          <div class="alert-card" style="border-left:4px solid ${st.color}" onclick="goDetail('${p.id}')">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${st.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span class="product-name" style="color:${st.color}">${p.name}</span>
+            </div>
+            <p class="alert-text">${msg}</p>
+            <p class="alert-meta">Stock : ${Math.round(p.currentStock)} · Conso : ${p.dailyUsage}/jour</p>
+          </div>`;
+        }).join('')}
+      </div>
+    `}
+  `;
+}
+
+// ─── DETAIL ───────────────────────────────
+let editingUsage = false;
+
+function renderDetail() {
+  const p = products.find(x => x.id===selectedId);
+  if(!p) { goDash(); return; }
+  const st = getStatus(p);
+  const dl = calcDaysLeft(p);
+  const last7 = (p.usageHistory||[]).slice(-7);
+  const maxU = Math.max(...last7.map(e=>e.used),1);
+
+  app().innerHTML = `
+    <div class="header">
+      <button class="back-btn" onclick="goDash()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <h1 style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;flex:1;text-align:center">${p.name}</h1>
+      <button class="icon-btn delete-btn" onclick="confirmDelete('${p.id}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="status-banner" style="background:${st.bg};border-color:${st.color}30">
+      <div class="banner-row">
+        <div>
+          <div class="status-badge" style="background:${st.color};color:#fff;border:none;font-size:11px">${st.label}</div>
+          <p class="banner-stock">${Math.round(p.currentStock).toLocaleString()}</p>
+          <p class="banner-sub">cartons en stock</p>
+        </div>
+        <div style="text-align:right">
+          <p class="banner-days" style="color:${st.color}">${dl===Infinity?'∞':dl}</p>
+          <p class="banner-sub">jours restants</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="usage-card">
+      <div class="usage-card-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="action-title">Consommation journalière</span>
+        </div>
+        ${!editingUsage ? `<button class="small-btn" onclick="startEditUsage()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Modifier
+        </button>` : ''}
+      </div>
+      ${editingUsage ? `
+        <div class="edit-row">
+          <input class="form-input" id="edit-usage" type="number" value="${p.dailyUsage}" autofocus>
+          <span class="edit-unit">/ jour</span>
+          <button class="btn-ok" onclick="saveUsage('${p.id}')">OK</button>
+          <button class="btn-cancel" onclick="cancelEditUsage()">✕</button>
+        </div>
+      ` : `
+        <div class="usage-display">
+          <span class="usage-big">${p.dailyUsage}</span>
+          <span class="usage-unit">cartons / jour</span>
+          <span class="usage-sub">Déduit automatiquement chaque jour</span>
+        </div>
+      `}
+    </div>
+
+    <div class="quick-stats">
+      <div class="stat-item"><span class="stat-label">Conso/jour</span><span class="stat-value">${p.dailyUsage}</span></div>
+      <div class="stat-item"><span class="stat-label">Conso/sem.</span><span class="stat-value">${(p.dailyUsage*7).toFixed(0)}</span></div>
+      <div class="stat-item"><span class="stat-label">Seuil alerte</span><span class="stat-value">${p.alertDays||15}j</span></div>
+    </div>
+
+    ${last7.length>0 ? `
+      <div class="chart-section">
+        <h3 class="chart-title">Sorties (7 derniers jours)</h3>
+        <div class="mini-chart">
+          ${last7.map(e => `
+            <div class="chart-bar">
+              <span class="chart-bar-label">${e.used}</span>
+              <div class="chart-bar-fill" style="height:${(e.used/maxU)*80}px;background:linear-gradient(180deg,${st.color},${st.color}44)"></div>
+              <span class="chart-bar-date">${e.date.slice(8)}/${e.date.slice(5,7)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="action-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span class="action-title">Réception de stock</span>
+      </div>
+      <div class="action-row">
+        <input class="form-input" id="receive-qty" type="number" placeholder="Quantité reçue" style="flex:1;margin:0">
+        <button class="action-btn" style="background:#34C759" onclick="doReceive('${p.id}')">Ajouter</button>
+      </div>
+    </div>
+
+    ${(p.receivedHistory&&p.receivedHistory.length>0) ? `
+      <div class="history-section">
+        <h3 class="section-title" style="margin-bottom:12px">Réceptions récentes</h3>
+        ${[...p.receivedHistory].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(e => `
+          <div class="history-item">
+            <div class="history-dot" style="background:#34C759"></div>
+            <span class="history-date">${fmtDate(e.date)}</span>
+            <span class="history-amount" style="color:#34C759">+${e.quantity}</span>
+            <span class="history-label">reçu</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '<div style="height:100px"></div>'}
+  `;
+}
+
+// ─── ACTIONS ──────────────────────────────
+function goDash() { currentView="dashboard"; editingUsage=false; render(); }
+function goAdd() { currentView="add"; render(); }
+function goAlerts() { currentView="alerts"; render(); }
+function goDetail(id) { selectedId=id; currentView="detail"; editingUsage=false; render(); }
+
+function doRefresh() {
+  products = autoDeduct(products);
+  showToast("Stock mis à jour !");
+  render();
+}
+
+function startEditUsage() { editingUsage=true; render(); }
+function cancelEditUsage() { editingUsage=false; render(); }
+
+function saveUsage(id) {
+  const val = parseFloat(document.getElementById('edit-usage').value);
+  if(isNaN(val) || val<0) return;
+  const p = products.find(x=>x.id===id);
+  if(p) { p.dailyUsage=val; saveData(products); }
+  editingUsage=false;
+  showToast("Consommation mise à jour !");
+  render();
+}
+
+function doReceive(id) {
+  const el = document.getElementById('receive-qty');
+  const qty = parseFloat(el.value);
+  if(!qty || qty<=0) return;
+  const p = products.find(x=>x.id===id);
+  if(p) {
+    p.currentStock += qty;
+    if(!p.receivedHistory) p.receivedHistory=[];
+    p.receivedHistory.push({date:todayStr(), quantity:qty});
+    saveData(products);
+    showToast(`+${qty} cartons reçus !`);
+    render();
+  }
+}
+
+function confirmDelete(id) {
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <h3>Supprimer ?</h3>
+      <p>Voulez-vous vraiment supprimer « ${p.name} » ? Cette action est irréversible.</p>
+      <div class="confirm-btns">
+        <button class="btn-no" onclick="this.closest('.confirm-overlay').remove()">Annuler</button>
+        <button class="btn-del" onclick="doDelete('${id}')">Supprimer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function doDelete(id) {
+  document.querySelector('.confirm-overlay')?.remove();
+  products = products.filter(p=>p.id!==id);
+  saveData(products);
+  showToast("Produit supprimé","warning");
+  goDash();
+}
+
+// ─── INIT ─────────────────────────────────
+render();
+</script>
+</body>
+</html>
